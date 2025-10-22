@@ -14,7 +14,7 @@ import java.util.List;
 @Table("news_articles")
 public class NewsArticle {
     @Id
-    private Locked id;
+    private long id;
 
     private String title;
     private String content;

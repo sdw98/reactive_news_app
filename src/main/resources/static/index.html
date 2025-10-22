@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>리액티브 뉴스 피드 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: black;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .content {
+            padding: 20px;
+        }
+
+        .news-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+        }
+
+        .news-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+            animation: slideIn 0.3s ease;
+        }
+
+        .news-item.realtime {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+
+        .news-item h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .news-item .meta {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .news-item .content {
+            color: #555;
+            line-height: 1.5;
+            padding: 0;
+        }
+
+        .status {
+            text-align: center;
+            padding: 20px;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+
+        .status.loading {
+            color: #007bff;
+        }
+
+        .status.error {
+            color: #dc3545;
+        }
+
+        .status.success {
+            color: #28a745;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .stream-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .search-box {
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🌊 리액티브 뉴스 피드 시스템</h1>
+        <p>Spring WebFlux와 Server-Sent Events를 활용한 실시간 뉴스 스트리밍</p>
+    </div>
+
+    <div class="controls">
+        <div class="button-group">
+            <button class="btn btn-primary" onclick="loadAllNews()">📰 모든 뉴스</button>
+            <button class="btn btn-success" onclick="startRealTimeStream()">📡 실시간 스트림 시작</button>
+            <button class="btn btn-warning" onclick="stopRealTimeStream()">⏹️ 스트림 중지</button>
+            <button class="btn btn-primary" onclick="loadPopularNews()">🔥 인기 뉴스</button>
+            <button class="btn btn-primary" onclick="loadTechNews()">💻 기술 뉴스</button>
+            <button class="btn btn-primary" onclick="loadSportsNews()">⚽ 스포츠 뉴스</button>
+            <button class="btn btn-danger" onclick="clearNews()">🗑️ 목록 지우기</button>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="뉴스 검색..." onkeypress="handleSearchKeyPress(event)">
+        </div>
+
+        <div class="stream-info" id="streamInfo" style="display: none;">
+            <strong>📡 실시간 스트림 활성</strong> - 새로운 뉴스가 자동으로 추가됩니다.
+        </div>
+
+        <div class="status" id="status">뉴스를 불러오려면 위 버튼을 클릭하세요.</div>
+
+        <div class="news-container" id="newsContainer"></div>
+    </div>
+</div>
+
+<script>
+    let eventSource = null;
+    let newsCount = 0;
+
+    // 상태 표시 함수
+    function showStatus(message, type = 'loading') {
+        const statusEl = document.getElementById('status');
+        statusEl.textContent = message;
+        statusEl.className = `status ${type}`;
+    }
+
+    // 뉴스 표시 함수
+    function displayNews(articles, isRealtime = false) {
+        const container = document.getElementById('newsContainer');
+
+        articles.forEach(article => {
+            const newsItem = document.createElement('div');
+            newsItem.className = `news-item ${isRealtime ? 'realtime' : ''}`;
+
+            newsItem.innerHTML = `
+                <h3>${article.title}</h3>
+                <div class="meta">
+                    📂 ${article.category} | ✍️ ${article.author} | 👀 ${article.viewCount || 0}회 조회
+                    ${article.publishedAt ? `| 🕒 ${new Date(article.publishedAt).toLocaleString('ko-KR')}` : ''}
+                </div>
+                <div class="content">${article.content}</div>
+            `;
+
+            if (isRealtime) {
+                container.insertBefore(newsItem, container.firstChild);
+            } else {
+                container.appendChild(newsItem);
+            }
+
+            newsCount++;
+        });
+
+        document.getElementById('status').style.display = 'none';
+    }
+
+    // 모든 뉴스 불러오기
+    async function loadAllNews() {
+        showStatus('모든 뉴스를 불러오는 중...', 'loading');
+        document.getElementById('newsContainer').innerHTML = '';
+        newsCount = 0;
+
+        try {
+            const response = await fetch('/api/news');
+            const news = await response.json();
+            displayNews(news);
+            showStatus(`총 ${news.length}개의 뉴스를 불러왔습니다.`, 'success');
+        } catch (error) {
+            showStatus('뉴스 불러오기 실패: ' + error.message, 'error');
+        }
+    }
+
+    // 인기 뉴스 불러오기
+    async function loadPopularNews() {
+        showStatus('인기 뉴스를 불러오는 중...', 'loading');
+        document.getElementById('newsContainer').innerHTML = '';
+        newsCount = 0;
+
+        try {
+            const response = await fetch('/api/news/popular?limit=5');
+            const news = await response.json();
+            displayNews(news);
+            showStatus(`인기 뉴스 ${news.length}개를 불러왔습니다.`, 'success');
+        } catch (error) {
+            showStatus('인기 뉴스 불러오기 실패: ' + error.message, 'error');
+        }
+    }
+
+    // 기술 뉴스 불러오기
+    async function loadTechNews() {
+        showStatus('기술 뉴스를 불러오는 중...', 'loading');
+        document.getElementById('newsContainer').innerHTML = '';
+        newsCount = 0;
+
+        try {
+            const response = await fetch('/api/news/category/TECH');
+            const news = await response.json();
+            displayNews(news);
+            showStatus(`기술 뉴스 ${news.length}개를 불러왔습니다.`, 'success');
+        } catch (error) {
+            showStatus('기술 뉴스 불러오기 실패: ' + error.message, 'error');
+        }
+    }
+
+    // 스포츠 뉴스 불러오기
+    async function loadSportsNews() {
+        showStatus('스포츠 뉴스를 불러오는 중...', 'loading');
+        document.getElementById('newsContainer').innerHTML = '';
+        newsCount = 0;
+
+        try {
+            const response = await fetch('/api/news/category/SPORTS');
+            const news = await response.json();
+            displayNews(news);
+            showStatus(`스포츠 뉴스 ${news.length}개를 불러왔습니다.`, 'success');
+        } catch (error) {
+            showStatus('스포츠 뉴스 불러오기 실패: ' + error.message, 'error');
+        }
+    }
+
+    // 실시간 스트림 시작
+    function startRealTimeStream() {
+        if (eventSource) {
+            stopRealTimeStream();
+        }
+
+        showStatus('실시간 뉴스 스트림을 시작합니다...', 'loading');
+        document.getElementById('streamInfo').style.display = 'block';
+
+        eventSource = new EventSource('/api/news/stream');
+
+        eventSource.onmessage = function(event) {
+            try {
+                const article = JSON.parse(event.data);
+                displayNews([article], true);
+                showStatus(`실시간 뉴스 수신 중... (총 ${newsCount}개)`, 'success');
+            } catch (error) {
+                console.error('뉴스 파싱 오류:', error);
+            }
+        };
+
+        eventSource.onerror = function(error) {
+            console.error('스트림 오류:', error);
+            showStatus('실시간 스트림 연결 오류가 발생했습니다.', 'error');
+            stopRealTimeStream();
+        };
+    }
+
+    // 실시간 스트림 중지
+    function stopRealTimeStream() {
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+            document.getElementById('streamInfo').style.display = 'none';
+            showStatus('실시간 스트림을 중지했습니다.', 'success');
+        }
+    }
+
+    // 뉴스 목록 지우기
+    function clearNews() {
+        document.getElementById('newsContainer').innerHTML = '';
+        newsCount = 0;
+        showStatus('뉴스 목록을 지웠습니다.', 'success');
+    }
+
+    // 뉴스 검색
+    async function searchNews(keyword) {
+        if (!keyword.trim()) {
+            showStatus('검색어를 입력하세요.', 'error');
+            return;
+        }
+
+        showStatus(`"${keyword}" 검색 중...`, 'loading');
+        document.getElementById('newsContainer').innerHTML = '';
+        newsCount = 0;
+
+        try {
+            const response = await fetch(`/api/news/search?keyword=${encodeURIComponent(keyword)}`);
+            const news = await response.json();
+            displayNews(news);
+            showStatus(`"${keyword}" 검색 결과: ${news.length}개`, 'success');
+        } catch (error) {
+            showStatus('검색 실패: ' + error.message, 'error');
+        }
+    }
+
+    // 검색 키 이벤트 처리
+    function handleSearchKeyPress(event) {
+        if (event.key === 'Enter') {
+            const keyword = event.target.value;
+            searchNews(keyword);
+        }
+    }
+
+    // 페이지 언로드 시 스트림 정리
+    window.addEventListener('beforeunload', function() {
+        stopRealTimeStream();
+    });
+</script>
+</body>
+</html>

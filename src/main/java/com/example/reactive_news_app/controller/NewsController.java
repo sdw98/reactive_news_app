@@ -1,8 +1,8 @@
 package com.example.reactive_news_app.controller;
 
 import com.example.reactive_news_app.model.NewsArticle;
-import com.example.reactive_news_app.serivce.NewsService;
-import com.example.reactive_news_app.serivce.UserService;
+import com.example.reactive_news_app.service.NewsService;
+import com.example.reactive_news_app.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -95,5 +95,15 @@ public class NewsController {
                 .onBackpressureBuffer(10)
                 .doOnNext(article -> log.debug("백프레셔 스트림: {}", article.getTitle()))
                 .doOnError(error -> log.error("백프레셔 오류: {}", error.getMessage()));
+    }
+
+    private NewsArticle generateTestArticle(Long tick) {
+        return NewsArticle.builder()
+                .id(tick)
+                .title("백프레셔 테스트 뉴스" + tick)
+                .content("백프레셔 처리를 위한 테스트 뉴스입니다.")
+                .category("TEST")
+                .author("시스템")
+                .build();
     }
 }
