@@ -1,0 +1,15 @@
+spring:
+  r2dbc:
+    url: r2dbc:h2:mem:///newsdb
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
+
+logging:
+  level:
+    reactor.netty: DEBUG
+    org.springframework.web.reactive: DEBUG
+    com.example.reactive_news: DEBUG
